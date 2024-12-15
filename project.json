@@ -8,7 +8,7 @@
       "chipFamily": "ESP8266",
       "parts": [
         {
-          "path": "https://raw.githubusercontent.com/Srvrn1/Lipa/main/bin/firmware.bin",
+          "path": "https://raw.githubusercontent.com/Srvrn1/LipaSensorTualet/main/bin/firmware.bin",
           "offset": 0
         }
       ]
