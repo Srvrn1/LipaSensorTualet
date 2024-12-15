@@ -2,13 +2,14 @@
 #include <Arduino.h>
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
+#include <AutoOTA.h>
 
 
 const char* ssid = "srvrn";
 const char* password =  "2155791975";
 
 const char* gvs = "MyDev/10a8c3a2/ID/set/gvs";       //Топик - счетчик гор воды
-const char* mg =  "MyDev/10a8c3a2/#" ;  //870690bb/set/mg";         //топик - свет в туалете
+const char* mg =  "MyDev/10a8c3a2/#" ;   //870690bb/set/mg";         //топик - свет в туалете
 
 
 //   MQTT  /////////////
@@ -22,6 +23,7 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 
 #define led 2
+String ver, notes;
 
 unsigned long lastMsg = 0;
 #define MSG_BUFFER_SIZE	(12)
@@ -29,6 +31,19 @@ char msg[MSG_BUFFER_SIZE];
 
 int value = 0;
 int count;
+
+AutoOTA ota("0.2", "Srvrn1/LipaSensorTualet");
+
+void ota_chek(){
+  if (ota.checkUpdate(&ver, &notes)) {
+    Serial.print("пришло обновление: ");
+    Serial.println(ver);
+    Serial.println(notes);
+    //ota.update();
+    ota.updateNow();
+  }
+  else Serial.println("нет обновы...");
+}
 
 void setup_wifi() {
 
@@ -98,11 +113,16 @@ void setup() {
   digitalWrite(led, HIGH);
 
   Serial.begin(74880);
+  Serial.println();
   Serial.println("gogo");
+  Serial.print("Version ");
+  Serial.println(ota.version());
+
   setup_wifi();
 
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
+  ota_chek();
 }
 
 void loop() {
