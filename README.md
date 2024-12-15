@@ -1,0 +1,2 @@
+# LipaSensorTualet
+ датчик из туалета
