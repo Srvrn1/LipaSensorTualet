@@ -8,11 +8,14 @@
 const char* ssid = "srvrn";
 const char* password =  "2155791975";
 
-const char* gvs = "MyDev/10a8c3a2/ID/set/gvs";       //Топик - счетчик гор воды
-const char* mg =  "MyDev/10a8c3a2/#" ;   //870690bb/set/mg";         //топик - свет в туалете
+//=================================================ТОПИКИ
+const char* Tgvs = "MyDev/10a8c3a2/ID/set/gvs";                       //Топик - счетчик гор воды
+const char* Tmg =  "MyDev/10a8c3a2/#" ;   //870690bb/set/mg";         //топик - свет в туалете //ID клиента ноутбук
+const char* Tsupdata = "MyDev/10a8c3a2/17d35acf/set/supd";            // поиск обновлений ID клиент- мой телефон
+const char* Tvers = "MyDev/10a8c3a2/ID/set/vers";                     //сюда шлем версию прошивы
 
 
-//   MQTT  /////////////
+//   MQTT  ============================================
 
 const char* mqtt_server = "m4.wqtt.ru";
 const int mqtt_port = 9478;
@@ -34,12 +37,14 @@ int count;
 
 AutoOTA ota("0.2", "Srvrn1/LipaSensorTualet");
 
+
 void ota_chek(){
   if (ota.checkUpdate(&ver, &notes)) {
     Serial.print("пришло обновление: ");
     Serial.println(ver);
     Serial.println(notes);
-    //ota.update();
+
+    client.publish(Tgvs, "Reset");
     ota.updateNow();
   }
   else Serial.println("нет обновы...");
@@ -68,11 +73,11 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 
-void callback(char* topic, byte* payload, int length) {
+void callback(char* topic, byte* payload, int length) {  //обрабатываем входящие топики
  
   uint8_t bkv = strlen(topic);
 
-  if(topic[bkv-2] == 'm' && topic[bkv-1] == 'g'){
+  if(topic[bkv-2] == 'm' && topic[bkv-1] == 'g'){      //если топик mg не важно с какого ID
     Serial.println("Работает!!!");
     if ((char)payload[0] == '1') {
      digitalWrite(led, LOW); 
@@ -81,8 +86,10 @@ void callback(char* topic, byte* payload, int length) {
       digitalWrite(led, HIGH); 
     }
   }
-
- 
+  if(topic == Tsupdata){                             //топик обновы с моего ID то идем на GitHub искать обнову
+    Serial.println("смотрим обнову");
+    ota_chek();                     
+  }
 
 }
 
@@ -96,7 +103,8 @@ void reconnect() {
     if (client.connect("ESP8266Client", mqtt_user, mqtt_password )) {
  
       Serial.println("connected");  
-      client.subscribe(mg);                                   //подписка на топики
+      client.subscribe(Tmg);                                   //подписка на топики
+      client.subscribe(Tsupdata);                              
  
     } else {
  
@@ -119,10 +127,16 @@ void setup() {
   Serial.println(ota.version());
 
   setup_wifi();
-
+ 
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
-  ota_chek();
+
+  client.publish(Tvers, ota.version().c_str());    //функция ".c_str()"" преобразует из STRING d const char
+
+  //String str = "hello";                    пример
+  //const char *str2 = str.c_str();          пример
+
+  
 }
 
 void loop() {
@@ -139,6 +153,6 @@ void loop() {
     snprintf (msg, MSG_BUFFER_SIZE,  "%d",count );
     Serial.print("Publish message: ");
     Serial.println(msg);
-    client.publish(gvs, msg);
+    client.publish(Tgvs, msg);
   }
 }
