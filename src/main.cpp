@@ -35,7 +35,8 @@ char msg[MSG_BUFFER_SIZE];
 int value = 0;
 int count;
 
-AutoOTA ota("0.2", "Srvrn1/LipaSensorTualet");
+
+AutoOTA ota("0.6", "Srvrn1/LipaSensorTualet");
 
 
 void ota_chek(){
@@ -72,13 +73,29 @@ void setup_wifi() {
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
 }
-
+//==============================================================================================
 void callback(char* topic, byte* payload, int length) {  //обрабатываем входящие топики
- 
-  uint8_t bkv = strlen(topic);
 
-  if(topic[bkv-2] == 'm' && topic[bkv-1] == 'g'){      //если топик mg не важно с какого ID
+  if(String(topic) == String(Tsupdata)){                             //топик обновы с моего ID то идем на GitHub искать обнову
+    Serial.println("смотрим обнову");
+    ota_chek();                     
+  };
+ 
+  
+//============================
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i=0;i<length;i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+
+//=================================
+  uint8_t bkv = strlen(topic);
+  if(topic[bkv-2] == 'm' && topic[bkv-1] == 'g'){           //если топик /mg не важно с какого ID
     Serial.println("Работает!!!");
+
     if ((char)payload[0] == '1') {
      digitalWrite(led, LOW); 
     } 
@@ -86,11 +103,7 @@ void callback(char* topic, byte* payload, int length) {  //обрабатыва�
       digitalWrite(led, HIGH); 
     }
   }
-  if(topic == Tsupdata){                             //топик обновы с моего ID то идем на GitHub искать обнову
-    Serial.println("смотрим обнову");
-    ota_chek();                     
-  }
-
+  
 }
 
 void reconnect() {
@@ -102,9 +115,12 @@ void reconnect() {
  
     if (client.connect("ESP8266Client", mqtt_user, mqtt_password )) {
  
-      Serial.println("connected");  
+      Serial.println("connected"); 
+
+      client.publish(Tvers, ota.version().c_str());    //функция ".c_str()"" преобразует из STRING d const char
+
       client.subscribe(Tmg);                                   //подписка на топики
-      client.subscribe(Tsupdata);                              
+      //client.subscribe(Tsupdata);                              
  
     } else {
  
@@ -131,7 +147,8 @@ void setup() {
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
 
-  client.publish(Tvers, ota.version().c_str());    //функция ".c_str()"" преобразует из STRING d const char
+  //client.publish(Tvers, ota.version().c_str());    //функция ".c_str()"" преобразует из STRING d const char
+  //client.publish(Tvers, "0.2");
 
   //String str = "hello";                    пример
   //const char *str2 = str.c_str();          пример
@@ -151,8 +168,9 @@ void loop() {
     ++value;
     count++;
     snprintf (msg, MSG_BUFFER_SIZE,  "%d",count );
-    Serial.print("Publish message: ");
+    Serial.print("Pub mess: ");
     Serial.println(msg);
     client.publish(Tgvs, msg);
+    
   }
 }

@@ -1,8 +1,8 @@
 {
   "name": "Lipa",
   "about": "Образец оформления репозитория проекта",
-  "version": "0.3",
-  "notes": "улыбка до...",
+  "version": "0.6",
+  "notes": "урра!!",
   "builds": [
     {
       "chipFamily": "ESP8266",
