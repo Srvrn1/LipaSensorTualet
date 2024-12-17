@@ -156,33 +156,12 @@ void setup() {
   Serial.println(ota.version());
 
   setup_wifi();
-//==================================================================
-  FDstat_t stat = metrika.read();
-  switch (stat) {
-    case FD_FS_ERR: Serial.println("FS Error");
-      break;
-    case FD_FILE_ERR: Serial.println("Error");
-      break;
-    case FD_WRITE: Serial.println("Data Write");
-      break;
-    case FD_ADD: Serial.println("Data Add");
-      break;
-    case FD_READ: Serial.println("Data Read");
-      break;
-    default:
-      break;
-  }
- //==================================================================
+
+  metrika.read();
+ 
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
-
-  //client.publish(Tvers, ota.version().c_str());    //функция ".c_str()"" преобразует из STRING d const char
-  //client.publish(Tvers, "0.2");
-
-  //String str = "hello";                    пример
-  //const char *str2 = str.c_str();          пример
-
-  
+ 
 }
 
 void loop() {
