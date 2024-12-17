@@ -3,6 +3,8 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 #include <AutoOTA.h>
+#include <FileData.h>
+#include <LittleFS.h>
 
 
 const char* ssid = "srvrn";
@@ -24,19 +26,29 @@ const char* mqtt_password = "HilZPRjD";
 
 WiFiClient espClient;
 PubSubClient client(espClient);
-
+//============================================================
+int16_t WaterCount[] = {0 , 0};        // WaterCount[0] -холодная вода, [1]- горячая вода
 #define led 2
-String ver, notes;
+String ver, notes;                    //при обновлении  версия и описание
 
-unsigned long lastMsg = 0;
+unsigned long lastMsg = 0;            //для отправки топиков
 #define MSG_BUFFER_SIZE	(12)
-char msg[MSG_BUFFER_SIZE];
+char msg[MSG_BUFFER_SIZE];            //сообщение для отправки в топики
 
-int value = 0;
-int count;
+int count =10;                            //просто счетчик
 
+//=============================================================
 
-AutoOTA ota("0.6", "Srvrn1/LipaSensorTualet");
+FileData metrika(&LittleFS, "/data", 'B', &WaterCount, sizeof(WaterCount),5000);   //создали объект класса
+
+// fs - файловая система, адрес (&LittleFS, &SDFS..)
+// path - путь (имя) файла. Может быть любым, как и расширение ("/myData", "/data/settings.dat")
+// key - ключ первой записи. Не рекомендуется задавать 0 и 255. Рекомендуется использовать символы ('A', 'F')
+// data - ссылка на переменную (массив, структуру, класс)
+// size - размер переменной, можно передать как sizeof(переменная)
+// tout - таймаут обновления в миллисекундах (умолч 5000)
+
+AutoOTA ota("0.7", "Srvrn1/LipaSensorTualet");
 
 
 void ota_chek(){
@@ -49,6 +61,7 @@ void ota_chek(){
     ota.updateNow();
   }
   else Serial.println("нет обновы...");
+  client.publish(Tvers, ota.version().c_str());
 }
 
 void setup_wifi() {
@@ -74,29 +87,26 @@ void setup_wifi() {
   Serial.println(WiFi.localIP());
 }
 //==============================================================================================
-void callback(char* topic, byte* payload, int length) {  //обрабатываем входящие топики
+void callback(char* topic, byte* payload, int length) {          //обрабатываем входящие топики
 
-  if(String(topic) == String(Tsupdata)){                             //топик обновы с моего ID то идем на GitHub искать обнову
+  if(String(topic) == String(Tsupdata)){                         //топик обновы с моего ID то идем на GitHub искать обнову
     Serial.println("смотрим обнову");
     ota_chek();                     
-  };
- 
-  
+  }
 //============================
-  Serial.print("Message arrived [");
+ /* Serial.print("Message arrived [");
   Serial.print(topic);
   Serial.print("] ");
   for (int i=0;i<length;i++) {
     Serial.print((char)payload[i]);
   }
-  Serial.println();
+  Serial.println();*/
 
 //=================================
   uint8_t bkv = strlen(topic);
-  if(topic[bkv-2] == 'm' && topic[bkv-1] == 'g'){           //если топик /mg не важно с какого ID
-    Serial.println("Работает!!!");
+  if(topic[bkv-2] == 'm' && topic[bkv-1] == 'g'){             //если топик /mg не важно с какого ID
 
-    if ((char)payload[0] == '1') {
+    if ((char)payload[0] == '1') {                            //включаем свет в сортире
      digitalWrite(led, LOW); 
     } 
     else {
@@ -133,6 +143,9 @@ void reconnect() {
 }
 
 void setup() {
+
+  LittleFS.begin();
+
   pinMode(led, OUTPUT);    
   digitalWrite(led, HIGH);
 
@@ -143,7 +156,23 @@ void setup() {
   Serial.println(ota.version());
 
   setup_wifi();
- 
+//==================================================================
+  FDstat_t stat = metrika.read();
+  switch (stat) {
+    case FD_FS_ERR: Serial.println("FS Error");
+      break;
+    case FD_FILE_ERR: Serial.println("Error");
+      break;
+    case FD_WRITE: Serial.println("Data Write");
+      break;
+    case FD_ADD: Serial.println("Data Add");
+      break;
+    case FD_READ: Serial.println("Data Read");
+      break;
+    default:
+      break;
+  }
+ //==================================================================
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
 
@@ -157,19 +186,22 @@ void setup() {
 }
 
 void loop() {
-
+  
   if (!client.connected()) {
     reconnect();
   }
   client.loop();
 
+  metrika.tick();
+
   if (millis()- lastMsg > 4000) {
     lastMsg = millis();
-    ++value;
-    count++;
-    snprintf (msg, MSG_BUFFER_SIZE,  "%d",count );
-    Serial.print("Pub mess: ");
-    Serial.println(msg);
+
+    WaterCount[1]++;
+
+    metrika.update();
+
+    snprintf (msg, MSG_BUFFER_SIZE,  "%d", WaterCount[1] );
     client.publish(Tgvs, msg);
     
   }
