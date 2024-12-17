@@ -36,7 +36,7 @@ unsigned long lastMsg;            //для отправки топиков
 char msg[MSG_BUFFER_SIZE];            //сообщение для отправки в топики
 
 //int count =10;                            //просто счетчик
-
+unsigned long was_ota;
 //=============================================================
 
 FileData metrika(&LittleFS, "/data", 'B', &WaterCount, sizeof(WaterCount),5000);   //создали объект класса
@@ -48,7 +48,7 @@ FileData metrika(&LittleFS, "/data", 'B', &WaterCount, sizeof(WaterCount),5000);
     // size - размер переменной, можно передать как sizeof(переменная)
     // tout - таймаут обновления в миллисекундах (умолч 5000)
 
-AutoOTA ota("0.8", "Srvrn1/LipaSensorTualet");
+AutoOTA ota("0.8.1", "Srvrn1/LipaSensorTualet");
 
 
 void ota_chek(){
@@ -89,7 +89,8 @@ void setup_wifi() {
 //==============================================================================================
 void callback(char* topic, byte* payload, int length) {          //обрабатываем входящие топики
 
-  if(String(topic) == String(Tsupdata)){                         //топик обновы с моего ID то идем на GitHub искать обнову
+  if(String(topic) == String(Tsupdata) && millis() - was_ota > 5000){                         //топик обновы с моего ID то идем на GitHub искать обнову
+    was_ota = millis();
     Serial.println("смотрим обнову");
     ota_chek();                     
   }
