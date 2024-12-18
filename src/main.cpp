@@ -12,6 +12,7 @@ const char* password =  "2155791975";
 
 //=================================================ТОПИКИ
 const char* Tgvs = "MyDev/10a8c3a2/ID/set/gvs";                       //Топик - счетчик гор воды
+const char* Thvs = "MyDev/10a8c3a2/ID/set/hvs";                     
 const char* Tmg =  "MyDev/10a8c3a2/#" ;   //870690bb/set/mg";         //топик - свет в туалете //ID клиента ноутбук
 const char* Tsupdata = "MyDev/10a8c3a2/17d35acf/set/supd";            // поиск обновлений ID клиент- мой телефон
 const char* Tvers = "MyDev/10a8c3a2/ID/set/vers";                     //сюда шлем версию прошивы
@@ -27,16 +28,18 @@ const char* mqtt_password = "HilZPRjD";
 WiFiClient espClient;
 PubSubClient client(espClient);
 //============================================================
-int16_t WaterCount[] = {0 , 0};        // WaterCount[0] -холодная вода, [1]- горячая вода
+int16_t WaterCount[] = {0 , 0};         // WaterCount[0] -холодная вода, [1]- горячая вода
 #define led 2
-String ver, notes;                    //при обновлении  версия и описание
+String ver, notes;                      //при обновлении  версия и описание
 
-unsigned long lastMsg;            //для отправки топиков
+unsigned long lastMsg;                  // время для отправки топиков
 #define MSG_BUFFER_SIZE	(12)
-char msg[MSG_BUFFER_SIZE];            //сообщение для отправки в топики
+char msg[MSG_BUFFER_SIZE];              //сообщение для отправки в топики
 
-//int count =10;                            //просто счетчик
-unsigned long was_ota;
+//int count =10;                        //просто счетчик
+unsigned long was_ota;                  //засекаем время, что бы несколько раз не искать обнову
+uint8_t clgvs;                          //счетчик импульсов горяч воды
+uint8_t clhvs;                          //счетчик импульсов холодной воды
 //=============================================================
 
 FileData metrika(&LittleFS, "/data", 'B', &WaterCount, sizeof(WaterCount),5000);   //создали объект класса
@@ -89,7 +92,7 @@ void setup_wifi() {
 //==============================================================================================
 void callback(char* topic, byte* payload, int length) {          //обрабатываем входящие топики
 
-  if(String(topic) == String(Tsupdata) && millis() - was_ota > 5000){                         //топик обновы с моего ID то идем на GitHub искать обнову
+  if(String(topic) == String(Tsupdata) && millis() - was_ota > 5000){       //топик обновы с моего ID то идем на GitHub искать обнову
     was_ota = millis();
     Serial.println("смотрим обнову");
     ota_chek();                     
@@ -143,6 +146,13 @@ void reconnect() {
   }
 }
 
+IRAM_ATTR void Isrgvs(){                        //обработка прерываний
+  clgvs++;
+}
+IRAM_ATTR void Isrhvs(){
+  clhvs++;
+}
+
 void setup() {
 
   LittleFS.begin();
@@ -162,6 +172,8 @@ void setup() {
  
   client.setServer(mqtt_server, mqtt_port);
   client.setCallback(callback);
+  attachInterrupt(D1, Isrgvs, RISING);
+  attachInterrupt(D2, Isrhvs, RISING);
  
 }
 
@@ -174,15 +186,18 @@ void loop() {
 
   metrika.tick();
 
-  if (millis()- lastMsg > 4000) {
-    lastMsg = millis();
-
+  if(clgvs >= 5){                          //горячий счетчик
+    clgvs = 0;
     WaterCount[1]++;
-
     metrika.update();
-
     snprintf (msg, MSG_BUFFER_SIZE,  "%d", WaterCount[1] );
     client.publish(Tgvs, msg);
-    
+  }
+  if(clhvs >= 5){                          //холодный счетчик
+    clgvs = 0;
+    WaterCount[0]++;
+    metrika.update();
+    snprintf (msg, MSG_BUFFER_SIZE,  "%d", WaterCount[0] );
+    client.publish(Thvs, msg);
   }
 }
